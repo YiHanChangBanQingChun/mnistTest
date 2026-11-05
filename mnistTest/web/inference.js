@@ -46,7 +46,7 @@ function predictProbabilities(model, pixels) {
   if (model.type === 'mlp') {
     for (let l = 0; l < model.weights.length; l++) {
       const matrix = model.weights[l];
-      const flat = matrix.flat();
+      const flat = model.flatWeights ? model.flatWeights[l] : matrix.flat();
       value = dense(value, flat, model.biases[l]);
       if (l < model.weights.length - 1) value = value.map(v => 1 / (1 + Math.exp(-Math.max(-80, Math.min(80, v)))));
     }

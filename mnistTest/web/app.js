@@ -6,6 +6,54 @@ const button = document.querySelector('#predict');
 const methodSelect = document.querySelector('#method');
 const modelInfo = document.querySelector('#modelInfo');
 let methods = [];
+// 按模型路径与版本缓存已解析的模型及正在执行的请求。
+const modelCache = new Map();
+let predicting = false;
+const retryButton = document.querySelector('#retryModel');
+function cacheKey(method) { return `${method.file}::${method.model_name}`; }
+function currentMethod() { return methods.find(item => item.id === methodSelect.value); }
+function updateModelStatus() {
+  const method = currentMethod();
+  const entry = method && modelCache.get(cacheKey(method));
+  const status = entry ? entry.status : 'loading';
+  button.disabled = predicting || !method || status !== 'ready';
+  retryButton.hidden = status !== 'error' || !method;
+  modelInfo.dataset.state = status;
+  if (!method) modelInfo.textContent = '正在读取可用模型…';
+  else if (status === 'loading') modelInfo.textContent = `模型加载中：${method.label}…`;
+  else if (status === 'ready') modelInfo.textContent = `● 模型已就绪：${method.model_name}`;
+  else modelInfo.textContent = '模型加载失败，请检查网络后重试。';
+}
+function loadModel(method) {
+  const key = cacheKey(method);
+  const cached = modelCache.get(key);
+  if (cached && cached.status !== 'error') return cached.promise;
+  const entry = { status: 'loading', model: null, promise: null };
+  modelCache.set(key, entry);
+  entry.promise = (async () => {
+    try {
+      const response = await fetch(method.file, { cache: 'no-cache' });
+      if (!response.ok) throw new Error(`模型请求失败 (${response.status})`);
+      const model = await response.json();
+      if (model.type !== method.id) throw new Error('模型类型与清单不匹配');
+      // 提前展平全连接权重，识别时无需重复分配数组。
+      if (model.type === 'mlp') model.flatWeights = model.weights.map(matrix => matrix.flat());
+      entry.model = model;
+      entry.status = 'ready';
+    } catch (error) {
+      entry.status = 'error';
+      console.error('模型加载失败:', error);
+    }
+    updateModelStatus();
+    return entry.model;
+  })();
+  updateModelStatus();
+  return entry.promise;
+}
+retryButton.addEventListener('click', () => {
+  const method = currentMethod();
+  if (method) loadModel(method);
+});
 let drawing = false;
 let hasInk = false;
 let revision = 0;
@@ -14,36 +62,31 @@ ctx.lineWidth = 20;
 ctx.lineCap = 'round';
 ctx.lineJoin = 'round';
 
-function showModelInfo() {
-  const method = methods.find(item => item.id === methodSelect.value);
-  modelInfo.textContent = method && method.available
-    ? `已发布模型：${method.model_name}`
-    : '该方法尚无模型，请先训练。';
-}
-
 async function refreshModels() {
   try {
     const response = await fetch('models/manifest.json', { cache: 'no-store' });
     if (!response.ok) throw new Error('无法读取模型列表');
     const data = await response.json();
-    const previous = methodSelect.value;
-    methods = data.methods.map(item => ({ ...item, available: true }));
+    if (!Array.isArray(data.methods) || !data.methods.length) throw new Error('模型列表为空');
+    methods = data.methods;
     methodSelect.replaceChildren();
     methods.forEach(method => {
       const option = document.createElement('option');
       option.value = method.id;
-      option.textContent = method.label + (method.available ? '' : '（尚未训练）');
-      option.disabled = !method.available;
+      option.textContent = method.label;
       methodSelect.append(option);
     });
-    const selected = methods.find(item => item.id === previous && item.available)
-      || methods.find(item => item.available);
-    methodSelect.disabled = !selected;
-    if (selected) methodSelect.value = selected.id;
-    showModelInfo();
+    methodSelect.value = methods[0].id;
+    methodSelect.disabled = false;
+    updateModelStatus();
+    // 先加载当前选择；在它完成后预加载其他模型，减少首屏网络竞争。
+    await loadModel(methods[0]);
+    methods.slice(1).forEach(loadModel);
   } catch (error) {
     methodSelect.disabled = true;
-    modelInfo.textContent = '无法读取模型列表，请检查网页部署或刷新页面。';
+    button.disabled = true;
+    modelInfo.dataset.state = 'error';
+    modelInfo.textContent = '无法读取模型列表，请检查网络后刷新页面。';
   }
 }
 
@@ -52,10 +95,10 @@ methodSelect.addEventListener('change', () => {
   message.textContent = '';
   document.querySelector('#empty').hidden = false;
   document.querySelector('#result').hidden = true;
-  showModelInfo();
+  updateModelStatus();
+  const method = currentMethod();
+  if (method) loadModel(method);
 });
-// 页面重新获得焦点时检查是否有新的训练结果。
-window.addEventListener('focus', refreshModels);
 refreshModels();
 
 function point(event) {
@@ -113,22 +156,18 @@ function showPreview(pixels) {
 }
 button.addEventListener('click', async () => {
   if (!hasInk) { message.textContent = '请先在画布上写一个数字。'; return; }
-  if (methodSelect.disabled || !methodSelect.value) { message.textContent = '请先选择可用的模型方法。'; return; }
+  const entry = currentMethod();
+  const cached = entry && modelCache.get(cacheKey(entry));
+  if (!cached || cached.status !== 'ready') { message.textContent = '模型尚未加载完成。'; return; }
   const currentRevision = revision;
-  const method = methodSelect.value;
-  button.disabled = true; message.textContent = '';
+  predicting = true; updateModelStatus(); message.textContent = '';
   try {
     const pixels = preprocess();
     showPreview(pixels);
-    const entry = methods.find(item => item.id === method);
-    const response = await fetch(entry.file);
-    if (!response.ok) throw new Error('模型加载失败，请刷新页面重试');
-    const model = await response.json();
-    const probabilities = predictProbabilities(model, pixels);
+    const probabilities = predictProbabilities(cached.model, pixels);
     const digit = probabilities.indexOf(Math.max(...probabilities));
     const data = { digit, probabilities, model_name: entry.model_name };
     if (currentRevision !== revision) return;
-    modelInfo.textContent = `本次使用：${data.model_name}`;
     document.querySelector('#empty').hidden = true;
     document.querySelector('#result').hidden = false;
     document.querySelector('#digit').textContent = data.digit;
@@ -143,5 +182,5 @@ button.addEventListener('click', async () => {
       row.append(label, track, value); bars.append(row);
     });
   } catch (error) { if (currentRevision === revision) message.textContent = error.message || '识别失败，请刷新页面后重试。'; }
-  finally { button.disabled = false; }
+  finally { predicting = false; updateModelStatus(); }
 });
