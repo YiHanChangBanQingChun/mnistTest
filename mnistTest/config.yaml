@@ -1,0 +1,21 @@
+# 数据文件路径：相对路径以本配置文件所在目录为准，也可以使用绝对路径。
+data:
+  train_images: data/train-images-idx3-ubyte.gz
+  train_labels: data/train-labels-idx1-ubyte.gz
+  test_images: data/t10k-images-idx3-ubyte.gz
+  test_labels: data/t10k-labels-idx1-ubyte.gz
+
+# 隐藏层使用 sigmoid，输出层使用 softmax；输入和输出维度由 MNIST 决定。
+model:
+  hidden_sizes: [256, 128, 64]
+  seed: 42
+
+training:
+  epochs: 30
+  batch_size: 128
+  learning_rate: 0.25
+  # 从原始训练集划出验证集，测试集仅在训练结束后评估。
+  validation_size: 10000
+
+output:
+  directory: runs

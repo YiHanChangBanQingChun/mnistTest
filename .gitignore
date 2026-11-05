@@ -1,0 +1,12 @@
+.DS_Store
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pycache
+*.zip
+
+# 独立发布快照及学习笔记
+/github-release/
+/cookbook/
+.vscode/

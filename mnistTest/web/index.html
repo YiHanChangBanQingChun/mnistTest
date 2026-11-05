@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>手写数字识别 | MNIST</title><link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="top"><div class="brand"><span class="brand-icon">✳</span><span>数字实验室 <small> / MNIST</small></span></div><div class="top-controls"><span class="badge"><i></i> 神经网络识别</span><label class="theme-label" for="theme">外观</label><select id="theme" aria-label="页面外观"><option value="auto">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div></header>
+    <section class="intro"><div class="eyebrow">HANDWRITTEN DIGIT RECOGNITION</div><h1>写下一个数字<span>，</span><br>看看机器怎么理解。</h1><p>用鼠标或手指写一个 0–9 的数字，让神经网络来猜猜看。</p></section>
+    <section class="workspace">
+      <div class="write-panel"><div class="panel-title"><div><span class="step">01</span><h2>手写区域</h2></div><span class="hint">在下方书写数字</span></div>
+        <div class="model-picker"><label for="method">识别方法</label><select id="method" disabled><option>正在查找模型…</option></select><span id="modelInfo" class="model-info" aria-live="polite">正在读取可用模型</span></div>
+        <div class="canvas-wrap"><canvas id="drawing" width="280" height="280" aria-label="手写数字画布"></canvas><span class="canvas-hint" id="canvasHint">在这里写一个数字</span></div>
+        <div class="actions"><button id="clear" class="secondary" type="button">↺ &nbsp;清空画布</button><button id="predict" class="primary" type="button">开始识别 <span>→</span></button></div><p class="tip">建议写在画布中央，笔画尽量连贯。</p>
+      </div>
+      <div class="result-panel"><div class="panel-title"><div><span class="step">02</span><h2>识别结果</h2></div><span class="hint">模型预测</span></div>
+        <div id="empty" class="empty"><div class="empty-icon">✦</div><strong>准备好了吗？</strong><p>写下数字并点击「开始识别」<br>结果会显示在这里</p></div>
+        <div id="result" class="result" hidden><div class="result-top"><div><div class="result-label">预测数字</div><div id="digit" class="digit">0</div></div><div class="confidence"><span>模型输出分数</span><strong id="confidence">—</strong></div></div><div class="preview-block"><canvas id="preview" width="28" height="28" aria-label="模型输入的 28 乘 28 灰度图"></canvas><div><strong>模型看到的图像</strong><span>28 × 28 灰度 · 已居中</span></div></div><div class="separator"></div><div class="distribution-title">概率分布 <span>0 – 9</span></div><div id="bars" class="bars"></div></div>
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+    <footer><span>MNIST / 手写数字识别</span><span>手写 → 预处理 → 神经网络 → 预测</span></footer>
+  </main><script src="theme.js"></script><script src="preprocess.js"></script><script src="inference.js"></script><script src="app.js"></script>
+</body></html>

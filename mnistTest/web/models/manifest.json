@@ -1,0 +1,16 @@
+{
+  "methods": [
+    {
+      "id": "mlp",
+      "label": "全连接神经网络",
+      "file": "models/mlp.json",
+      "model_name": "20261105_191947_7a6a98ef/model.npz"
+    },
+    {
+      "id": "cnn",
+      "label": "卷积神经网络 CNN",
+      "file": "models/cnn.json",
+      "model_name": "20261105_193615_d13904c1/model.npz"
+    }
+  ]
+}
